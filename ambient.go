@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"github.com/mkrentovskiy/ambient/devices"
 	"github.com/tryphon/alsa-go"
@@ -17,37 +15,32 @@ func sound_in(dest chan int) {
 		return
 	}
 
-	handle.SampleFormat = alsa.SampleFormatS16LE
-	handle.SampleRate = 4000
+	handle.SampleFormat = alsa.SampleFormatU16LE
+	handle.SampleRate = 11025
 	handle.Channels = 1
+
 	err = handle.ApplyHwParams()
 	if err != nil {
-		fmt.Printf("SetHwParams failed. %s", err)
+		fmt.Printf("SetHwParams failed. %s\n", err)
 		return
 	}
 
-	buflen := int(16 * 1024)
+	buflen := int(4096)
 	buf := make([]uint8, buflen)
 	for {
 		n, err := handle.Read(buf)
 		if err != nil {
-			fmt.Printf("Read failed. %s", err)
-		} else if n == buflen {
-			go func(b []uint8) {
-				var v int16
-				s := float32(0)
-				br := bytes.NewReader(b)
-				for binary.Read(br, binary.LittleEndian, &v) == nil {
-					if s > 0 {
-						s = (s + float32(v)) / 2
-					} else {
-						s = float32(v)
-					}
+			fmt.Printf("Read failed. %s\n", err)
+		} else {
+			max := uint16(buf[1])<<8 + uint16(buf[0])
+
+			for i := 2; i < n; i += 2 {
+				c := uint16(buf[i+1])<<8 + uint16(buf[i])
+				if c > max {
+					max = c
 				}
-				if s > 0 {
-					dest <- int(s)
-				}
-			}(buf)
+			}
+			dest <- int(max)
 		}
 	}
 	handle.Close()
@@ -58,9 +51,8 @@ func pulse(src chan int, dest chan int, tres int, pulse_ms int) {
 	for {
 		go func() {
 			v := <-src
-			// fmt.Printf(" -> %d\n", v)
+
 			if v > tres {
-				// fmt.Printf(" -> %d\n", v)
 				k = v
 			}
 		}()
@@ -119,7 +111,7 @@ func val_to_color(val int, min_val int, max_val int) devices.RGB {
 func main() {
 	chp := make(chan int)
 	chl := make(chan int)
-	go pulse(chp, chl, 300, 10)
-	go leds(chl, 160, 300, 2000)
+	go pulse(chp, chl, 33523, 50)
+	go leds(chl, 160, 33523, 65535)
 	sound_in(chp)
 }
