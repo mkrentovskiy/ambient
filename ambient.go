@@ -8,6 +8,13 @@ import (
 )
 
 func sound_in(dest chan int) {
+	buflen := int(4096)
+	buf := make([]uint8, buflen)
+	n := 0
+	max := uint16(0)
+	i := 0
+	c := uint16(0)
+
 	handle := alsa.New()
 	err := handle.Open("default", alsa.StreamTypeCapture, alsa.ModeBlock)
 	if err != nil {
@@ -25,17 +32,15 @@ func sound_in(dest chan int) {
 		return
 	}
 
-	buflen := int(4096)
-	buf := make([]uint8, buflen)
 	for {
-		n, err := handle.Read(buf)
+		n, err = handle.Read(buf)
 		if err != nil {
 			fmt.Printf("Read failed. %s\n", err)
 		} else {
-			max := uint16(buf[1])<<8 + uint16(buf[0])
+			max = uint16(buf[1])<<8 + uint16(buf[0])
 
-			for i := 2; i < n; i += 2 {
-				c := uint16(buf[i+1])<<8 + uint16(buf[i])
+			for i = 2; i < n; i += 2 {
+				c = uint16(buf[i+1])<<8 + uint16(buf[i])
 				if c > max {
 					max = c
 				}
@@ -48,14 +53,16 @@ func sound_in(dest chan int) {
 
 func pulse(src chan int, dest chan int, tres int, pulse_ms int) {
 	k := 0
-	for {
-		go func() {
-			v := <-src
+	v := 0
 
+	for {
+		select {
+		case v = <-src:
 			if v > tres {
 				k = v
 			}
-		}()
+			break
+		}
 		if k > 0 {
 			dest <- k
 			k = 0
@@ -69,15 +76,18 @@ func pulse(src chan int, dest chan int, tres int, pulse_ms int) {
 func leds(source chan int, num_leds uint, min_val int, max_val int) {
 	leds := make([]devices.RGB, num_leds)
 	state := devices.InitWS2801(0, 1, num_leds)
+	val := 0
+	i := uint(0)
 
 	for {
-		go func() {
-			val := <-source
-			for i := num_leds - 1; i > 0; i-- {
+		select {
+		case val = <-source:
+			for i = num_leds - 1; i > 0; i-- {
 				leds[i] = leds[i-1]
 			}
 			leds[0] = val_to_color(val, min_val, max_val)
-		}()
+			break
+		}
 		state.Send(leds)
 		time.Sleep(100 * time.Millisecond)
 	}

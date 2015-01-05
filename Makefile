@@ -1,5 +1,5 @@
 TOOLCHAINS_DIR = /home/mkrentovskiy/develop/virt2real/install-sdk/codesourcery/arm-2013.05
-SYSROOT = /home/mkrentovskiy/develop/virt2real/virt2real-sdk.lxc/fs/output/host/usr/arm-buildroot-linux-gnueabi/sysroot
+SYSROOT = /home/mkrentovskiy/develop/virt2real/install-sdk/fs/output/host/usr/arm-buildroot-linux-gnueabi/sysroot
 
 OPTS = GOARCH=arm
 OPTS += GOARM=5 
@@ -17,4 +17,4 @@ OPTS += CGO_LDFLAGS="-L$(SYSROOT)/usr/lib -Wl,-rpath,$(SYSROOT)/usr/lib --sysroo
 all:
 	$(OPTS) go env
 	$(OPTS) go build
-	scp ambient root@192.168.3.1:/root
+	scp ambient root@192.168.222.128:/root
